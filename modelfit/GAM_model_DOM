@@ -1,0 +1,896 @@
+---
+  editor_options: 
+  markdown: 
+  wrap: 72
+---
+
+# Prepare the files to run the model
+  
+rm(list=ls())  
+
+  path="C:/R/Projects/OCEAN/Tool_R_codes/DOM"
+  envdir=paste(path,"/environmental_data/", sep="")
+  staticdir=paste0(path, "/static_variables/", sep="")
+  oceandir=paste(path, "/output/", sep="")
+  gam_dir=paste(path,"/GAM/", sep="")
+
+# Load libraries and functions
+
+library(mgcv) 
+library(Hmisc) 
+library(raster)
+library(lubridate)
+library(ggplot2)
+library(hrbrthemes)
+
+# Open file
+
+pma_gam<-read.csv(paste(gam_dir,"/pma_final_gam2.csv", sep=""), header=T)
+
+## #Add year and month as variables
+
+pma_gam$date<-as.Date(pma_gam$date)
+pma_gam$month<-month(pma_gam$date) 
+pma_gam$year<-year(pma_gam$date)
+
+## #Select data from May to August
+#segments per month 
+table(pma_gam$month)
+
+4    5    6    7    8    9   10 
+9 4986 7216 8053 5517 2452  317 
+
+
+pma_gam_month<-aggregate(pma_s ~ month, data=pma_gam, FUN=sum)
+barplot(height=pma_gam_month$pma_s, names=pma_gam_month$month)
+
+## #Select years with more sightings
+table(pma_gam$year)
+
+2001 2002 2003 2004 2005 2006 2007 2008 2009 2010 2011 2012 2013 2014 2015 2016 
+1413 1263 1708 2154 2534 1386 1797 2659 2198 1339 2293 2631 2718 1067  939  451
+
+pma_gam_year<-aggregate(pma_s ~ year, data=pma_gam, FUN=sum)
+barplot(height=pma_gam_year$pma_s, names=pma_gam_year$year)
+
+##select only data from may to September (month 5-9) and years 2001-2013
+
+pma_gam_new<- subset(pma_gam, pma_gam$month >="5" & pma_gam$month <"9")
+
+#pma_gam_new <- subset(pma_gam_new, year < 2014)
+
+##map sightings
+
+nlev_year<-nlevels(factor(pma_gam_new$year))                   
+lev_year<-levels(factor(pma_gam_new$year)) 
+
+for(i in 1:nlev_year){
+  year_pma<-subset(pma_gam_new, pma_gam_new$year==lev_year[i])
+  p<-ggplot()+
+    geom_point(aes(Long, Lat), data=year_pma, size=0.8, alpha=0.5, color='black')+
+    ggtitle(paste("Sightings in", year_pma$year, sep=" "))+
+    theme_minimal()
+  ggsave(paste(gam_dir,"/plots/",paste("Sightings_", year_pma$year,".jpeg"), sep=""), plot=p)
+}
+
+
+hist(pma_gam_new$pma_s)
+table(pma_gam_new$pma_s)
+0     1     2     3 
+25186   539    42     5
+
+
+boxplot(pma_gam_new$pma_s ~ pma_gam_new$month)
+
+pma_gam_new$dum<-1 #needed to include observer and boat in GAM with random effect
+
+
+##Select segments with a minimum of 8km of effort
+
+#pma_gam_new <- subset(pma_gam_new, effort_length > 7999)
+
+#Data exploration
+
+plot(pma_gam_new$chl~pma_gam_new$Lat)
+
+pma_gam_new <- subset(pma_gam_new, Lat < 40)
+pma_gam_new <- subset(pma_gam_new, Lat > 36.5)
+range(pma_gam_new$Lat)
+
+pma_gam_new <- subset(pma_gam_new, Long < -24)
+range(pma_gam_new$Long)
+
+pma_gam<-pma_gam_new
+
+write.csv(pma_gam_new,paste(gam_dir, "pma_gam_new.csv"))
+
+##correlation between variables
+
+correlation_matrix<-as.data.frame(cor(pma_gam[,9:20]))
+write.csv(correlation_matrix,paste(gam_dir, "correlation_matrix.csv"))
+
+#Correlated variables
+#Dist coast with Dist_200m, dist_3000m, dist_4000m
+#Dist_200m with Dist_500m
+#Dist_3000m with Dist_4000m
+
+#Eliminated variables Dist_coast, Dist_200, Dist_4000m
+
+## #Separate train e test datasets 75/25
+
+pma75<-floor((nrow(pma_gam)/4)*3) 
+pma_train<- pma_gam[sample(nrow(pma_gam),pma75),] 
+pma_test<- pma_gam[sample(nrow(pma_gam),nrow(pma_gam)-pma75),]
+
+pma_train$month<-factor(pma_train$month)
+pma_test$month<-factor(pma_test$month)
+
+write.csv(pma_train,paste(gam_dir, "pma_train.csv"))
+
+#Variables in the model
+#sst
+#chl
+#chl_2m
+#depth
+#slope
+#dist_coast
+#dist_200m
+#dist_500m
+#dist_1000m
+#dist_3000m
+#dist_4000m
+#dist_smnt
+
+
+
+# GAM with binomial distribution
+
+#Binomial is the preferntial distribution for the data but it is not possible to include the effort in GAM with binomial distribution
+
+gam<-gam(presence ~ s(sst)+s(chl)+s(chl_2m)+s(depth)+s(slope)+s(dist_coast)+s(dist_500m)+s(dist_1000m)+s(dist_3000m), data=pma_train, family=binomial, method="REML")
+
+summary(gam)
+par(mfrow=c(2,2))
+gam.check(gam)
+plot(gam,pages=1,se=T,shade=T)
+concurvity(gam, full=F)
+
+gam_pred<-data.frame(predict(gam,se.fit=T,newdata=pma_test,type="response", backtransform=F))
+gam_pred_fit<-gam_pred$fit
+cindex_gam<-rcorr.cens(gam_pred_fit,pma_test$presence)
+print(cindex_gam)
+AIC(gam)
+
+#log Chla 2m
+gam_bn_2<-gam(presence ~ s(sst)+s(chl)+s(log_chl_2m)+s(depth)+s(slope)+s(dist_coast)+s(dist_500m)+s(dist_1000m)+s(dist_3000m), data=pma_train, family=binomial, method="REML")
+
+summary(gam_bn_2)
+par(mfrow=c(2,2))
+gam.check(gam_bn_2)
+plot(gam_bn_2,pages=1,se=T,shade=T)
+concurvity(gam_bn_2, full=F)
+
+gam_pred<-data.frame(predict(gam_bn_2,se.fit=T,newdata=pma_test,type="response", backtransform=F))
+gam_pred_fit<-gam_pred$fit
+cindex_gam<-rcorr.cens(gam_pred_fit,pma_test$presence)
+print(cindex_gam)
+AIC(gam)
+
+gam_bn_3<-gam(presence ~ s(sst)+s(log_chl_2m)+s(depth)+s(dist_coast)+s(dist_500m)+s(dist_3000m), data=pma_train, family=binomial, method="REML")
+
+summary(gam_bn_3)
+par(mfrow=c(2,2))
+gam.check(gam_bn_3)
+plot(gam_bn_3,pages=1,se=T,shade=T)
+concurvity(gam_bn_3, full=F)
+
+gam_pred<-data.frame(predict(gam_bn_3,se.fit=T,newdata=pma_test,type="response", backtransform=F))
+gam_pred_fit<-gam_pred$fit
+cindex_gam<-rcorr.cens(gam_pred_fit,pma_test$presence)
+print(cindex_gam)
+AIC(gam)
+
+#
+gam_bn_4<-gam(presence ~ s(sst)+s(log_chl_2m)+s(depth)+s(dist_coast)+s(dist_1000m), data=pma_train, family=binomial, method="REML")
+
+summary(gam_bn_4)
+par(mfrow=c(2,2))
+gam.check(gam_bn_4)
+plot(gam_bn_4,pages=1,se=T,shade=T)
+concurvity(gam_bn_4, full=F)
+
+gam_pred<-data.frame(predict(gam_bn_3,se.fit=T,newdata=pma_test,type="response", backtransform=F))
+gam_pred_fit<-gam_pred$fit
+cindex_gam<-rcorr.cens(gam_pred_fit,pma_test$presence)
+print(cindex_gam)
+AIC(gam)
+
+gam_bn_5<-gam(presence ~ s(Long, Lat)+s(sst)+s(log_chl_2m)+s(depth)+s(dist_coast)+s(dist_1000m), data=pma_train, family=binomial, method="REML")
+
+summary(gam_bn_5)
+par(mfrow=c(2,2))
+gam.check(gam_bn_5)
+plot(gam_bn_5,pages=1,se=T,shade=T)
+concurvity(gam_bn_5, full=F)
+
+gam_pred<-data.frame(predict(gam_bn_5,se.fit=T,newdata=pma_test,type="response", backtransform=F))
+gam_pred_fit<-gam_pred$fit
+cindex_gam<-rcorr.cens(gam_pred_fit,pma_test$presence)
+print(cindex_gam)
+AIC(gam_bn_5)
+
+gam_bn_6<-gam(presence ~ s(Long, Lat)+s(sst)+s(log_chl_2m)+s(depth), data=pma_train, family=binomial, method="REML")
+
+summary(gam_bn_6)
+par(mfrow=c(2,2))
+gam.check(gam_bn_6)
+plot(gam_bn_6,pages=1,se=T,shade=T)
+concurvity(gam_bn_6, full=F)
+
+gam_pred<-data.frame(predict(gam_bn_6,se.fit=T,newdata=pma_test,type="response", backtransform=F))
+gam_pred_fit<-gam_pred$fit
+cindex_gam<-rcorr.cens(gam_pred_fit,pma_test$presence)
+print(cindex_gam)
+AIC(gam_bn_6)
+
+gam_bn_7<-gam(presence ~ s(Long, Lat)+sst+log_chl_2m+s(depth), data=pma_train, family=binomial, method="REML")
+
+summary(gam_bn_7)
+par(mfrow=c(2,2))
+gam.check(gam_bn_7)
+plot(gam_bn_7,pages=1,se=T,shade=T)
+concurvity(gam_bn_7, full=F)
+
+gam_pred<-data.frame(predict(gam_bn_7,se.fit=T,newdata=pma_test,type="response", backtransform=F))
+gam_pred_fit<-gam_pred$fit
+cindex_gam<-rcorr.cens(gam_pred_fit,pma_test$presence)
+print(cindex_gam)
+AIC(gam_bn_7)
+
+gam_bn_8<-gam(presence ~ s(Long, Lat)+te(log_chl_2m, depth)+s(sst), data=pma_train, family=binomial, method="REML")
+
+summary(gam_bn_8)
+par(mfrow=c(2,2))
+gam.check(gam_bn_8)
+plot(gam_bn_8,pages=1,se=T,shade=T)
+concurvity(gam_bn_7, full=F)
+
+par(mfrow= c (1,1))
+vis.gam(gam_bn_8, view=c("log_chl_2m","depth"), 
+        type="response", n.grid=40, too.far=0.1,
+        ticktype="detailed", phi=20, theta=250)
+
+vis.gam(gam_bn_8, view=c("Lat","Long"), 
+        type="response", n.grid=40, too.far=0.02,
+        ticktype="detailed", phi=20, theta=220)
+
+gam_pred<-data.frame(predict(gam_bn_8,se.fit=T,newdata=pma_test,type="response", backtransform=F))
+gam_pred_fit<-gam_pred$fit
+cindex_gam<-rcorr.cens(gam_pred_fit,pma_test$presence)
+print(cindex_gam)
+AIC(gam_bn_8)
+
+gam_bn_9<-gam(presence ~ s(Long, Lat)+te(sst, depth)+s(log_chl), data=pma_train, family=binomial, method="REML")
+
+summary(gam_bn_9)
+par(mfrow=c(2,2))
+gam.check(gam_bn_9)
+plot(gam_bn_9,pages=1,se=T,shade=T)
+concurvity(gam_bn_9, full=F)
+
+par(mfrow= c (1,1))
+vis.gam(gam_bn_9, view=c("sst","depth"), 
+        type="response", n.grid=40, too.far=0.1,
+        ticktype="detailed", phi=20, theta=250)
+
+vis.gam(gam_bn_9, view=c("Lat","Long"), 
+        type="response", n.grid=40, too.far=0.02,
+        ticktype="detailed", phi=20, theta=220)
+
+gam_pred<-data.frame(predict(gam_bn_9,se.fit=T,newdata=pma_test,type="response", backtransform=F))
+gam_pred_fit<-gam_pred$fit
+cindex_gam<-rcorr.cens(gam_pred_fit,pma_test$presence)
+print(cindex_gam)
+AIC(gam_bn_9)
+
+
+###BEST GAM BINOMIAL MODEL
+
+gam_bn_6<-gam(presence ~ s(Long, Lat)+s(sst)+s(log_chl_2m)+s(depth), data=pma_train, family=binomial)
+
+summary(gam_bn_6)
+par(mfrow=c(2,2))
+gam.check(gam_bn_6)
+plot(gam_bn_6,pages=1,se=T,shade=T)
+concurvity(gam_bn_6, full=F)
+
+gam_pred<-data.frame(predict(gam_bn_6,se.fit=T,newdata=pma_test,type="response", backtransform=F))
+gam_pred_fit<-gam_pred$fit
+cindex_gam<-rcorr.cens(gam_pred_fit,pma_test$presence)
+print(cindex_gam)
+AIC(gam_bn_6)# 4046.36
+range(gam_pred_fit)
+[1] 0.002160416 0.061807433
+summary(gam_pred_fit)
+Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+0.00216 0.01531 0.02267 0.02260 0.02878 0.06181 
+
+C Index            Dxy           S.D.              n        missing     uncensored Relevant Pairs     Concordant      Uncertain 
+6.569757e-01   3.139513e-01   4.392358e-02   6.326000e+03   0.000000e+00   6.326000e+03   1.804560e+06   1.185552e+06   0.000000e+00 
+
+Approximate significance of smooth terms:
+  edf Ref.df Chi.sq  p-value    
+s(Long,Lat)   22.463 26.565 67.370 1.73e-05 ***
+  s(sst)         1.005  1.010  3.099    0.080 .  
+s(log_chl_2m)  1.012  1.024  3.438    0.065 .  
+s(depth)       2.800  3.557 32.874 1.65e-06 ***
+
+gam_bn_6a<-gam(presence ~ s(Long, Lat)+s(sst)+s(depth), data=pma_train, family=binomial)
+
+summary(gam_bn_6a)
+
+Approximate significance of smooth terms:
+  edf Ref.df Chi.sq  p-value    
+s(Long,Lat) 14.757 19.466 40.054  0.00394 ** 
+  s(sst)       1.004  1.009  2.066  0.15274    
+s(depth)     3.188  4.017 34.931 6.92e-07 ***
+
+par(mfrow=c(2,2))
+gam.check(gam_bn_6a)
+plot(gam_bn_6a,pages=1,se=T,shade=T)
+concurvity(gam_bn_6a, full=F)
+
+gam_pred<-data.frame(predict(gam_bn_6a,se.fit=T,newdata=pma_test,type="response", backtransform=F))
+gam_pred_fit<-gam_pred$fit
+cindex_gam<-rcorr.cens(gam_pred_fit,pma_test$presence)
+print(cindex_gam)
+AIC(gam_bn_6a)# 4045.888
+range(gam_pred_fit)
+[1] 0.002231221 0.059304660
+summary(gam_pred_fit)
+Min.  1st Qu.   Median     Mean  3rd Qu.     Max. 
+0.002231 0.015450 0.022795 0.022569 0.028703 0.059305
+
+C Index            Dxy           S.D.              n        missing     uncensored Relevant Pairs     Concordant      Uncertain 
+6.529813e-01   3.059627e-01   4.361923e-02   6.326000e+03   0.000000e+00   6.326000e+03   1.804560e+06   1.178344e+06   0.000000e+00 
+
+
+
+gam_bn_6b<-gam(presence ~ s(sst)+s(log_chl_2m)+s(depth), data=pma_train, family=binomial, method="REML")
+
+summary(gam_bn_6b)
+
+edf Ref.df Chi.sq p-value    
+s(sst)        1.111  1.214  3.215  0.1153    
+s(log_chl_2m) 1.311  1.566  3.577  0.0848 .  
+s(depth)      3.721  4.664 39.898  <2e-16 ***
+
+par(mfrow=c(2,2))
+gam.check(gam_bn_6b)
+plot(gam_bn_6b,pages=1,se=T,shade=T)
+concurvity(gam_bn_6b, full=F)
+
+gam_pred<-data.frame(predict(gam_bn_6b,se.fit=T,newdata=pma_test,type="response", backtransform=F))
+gam_pred_fit<-gam_pred$fit
+cindex_gam<-rcorr.cens(gam_pred_fit,pma_test$presence)
+print(cindex_gam)
+AIC(gam_bn_6b)
+range(gam_pred_fit)
+[1]  0.00400872 0.04144540
+summary(gam_pred_fit)
+Min.  1st Qu.   Median     Mean  3rd Qu.     Max. 
+0.004009 0.018602 0.024654 0.022634 0.027841 0.041445
+
+C Index            Dxy           S.D.              n        missing     uncensored Relevant Pairs     Concordant      Uncertain 
+6.128197e-01   2.256395e-01   4.413299e-02   6.326000e+03   0.000000e+00   6.326000e+03   1.804560e+06   1.105870e+06   0.000000e+00 
+> AIC(gam_bn_6b)
+[1] 4073.389
+
+# GAM with poisson distribution
+
+## #1: Because of the collinearity, dist_200m, dist_300m, and dist_4000m were removed. Only chl variables were transformed.
+
+gam<-gam(pma_s~s(sst)+s(log_chl)+s(log_chl_2m)+s(depth)+s(slope)+s(dist_coast)+s(dist_500m)+s(dist_1000m), offset=log(effort_length), data=pma_train, family = poisson, method = "REML")
+
+summary(gam)
+par(mfrow=c(2,2))
+gam.check(gam)
+plot(gam,pages=1,se=T,shade=T)
+concurvity(gam, full=F)
+
+gam_pred<-data.frame(predict(gam,se.fit=T,newdata=pma_test,type="response", backtransform=F))
+gam_pred_fit<-gam_pred$fit
+cindex_gam<-rcorr.cens(gam_pred_fit,pma_test$pma_s)
+print(cindex_gam)
+AIC(gam)
+
+## #2: Remove dist_500m and sst because of concurvity.
+
+gam<-gam(pma_s~s(log_chl_2m)+s(depth)+s(dist_coast)+s(dist_500m), offset=log(effort_length), data=pma_train, family = poisson, method = "REML")
+
+summary(gam)
+par(mfrow=c(2,2))
+gam.check(gam)
+plot(gam,pages=1,se=T,shade=T)
+concurvity(gam, full=F)
+
+gam_pred<-data.frame(predict(gam,se.fit=T,newdata=pma_test,type="response", backtransform=F))
+gam_pred_fit<-gam_pred$fit
+cindex_gam<-rcorr.cens(gam_pred_fit,pma_test$pma_s)
+print(cindex_gam)
+AIC(gam)
+```
+
+**Significative variables**: depth
+
+**Deviance explained**=1.35%
+
+**gam.check() output:** dist_coast with low p-value
+
+QQ-plot of residuals far from the straight line =\> worst!!!
+  
+  **concurvity():** dist_1000m with depth \~0.5
+
+**C-Index:** 0.563
+
+**AIC:** 3383.404
+
+## #3: Use transformed distance variables. Substitute dist_coast with dist_500m. Remove dist_1000m
+
+gam<-gam(pma_s~s(log_chl)+s(log_chl_2m)+s(depth)+s(slope)+s(sqrt_dist_500m), offset=log(effort_length), data=pma_train, family = poisson, method = "REML")
+
+summary(gam)
+par(mfrow=c(2,2))
+gam.check(gam)
+plot(gam,pages=1,se=T,shade=T)
+concurvity(gam, full=F)
+
+gam_pred<-data.frame(predict(gam,se.fit=T,newdata=pma_test,type="response", backtransform=F))
+gam_pred_fit<-gam_pred$fit
+cindex_gam<-rcorr.cens(gam_pred_fit,pma_test$pma_s)
+print(cindex_gam)
+AIC(gam)
+```
+
+**Significative variables**: depth + sqrt_dist_500m
+
+**Deviance explained**=1.54%
+
+**gam.check() output:** sqrt_dist_500m with low p-value
+
+QQ-plot of residuals far from the straight line =\> worst!!!
+  
+  **concurvity():** sqrt_dist_500m with depth \~0.7
+
+**C-Index:** 0.566
+
+**AIC:** 3373.975
+
+## #4: Change depth for dist_500m
+
+```{r}
+gam<-gam(pma_s~s(sst)+s(log_chl_2m)+s(sqrt_dist_500m), offset=log(effort_length), data=pma_train, family = poisson, method = "REML")
+
+summary(gam)
+par(mfrow=c(2,2))
+gam.check(gam)
+plot(gam,pages=1,se=T,shade=T)
+concurvity(gam, full=F)
+
+gam_pred<-data.frame(predict(gam,se.fit=T,newdata=pma_test,type="response", backtransform=F))
+gam_pred_fit<-gam_pred$fit
+cindex_gam<-rcorr.cens(gam_pred_fit,pma_test$pma_s)
+print(cindex_gam)
+AIC(gam)
+```
+
+**Significative variables**: sqrt_dist_500m (for alpha 0.1)
+
+**Deviance explained**=0.513%
+
+**gam.check() output:** sqrt_dist_coast low p-value (k=9)
+
+QQ-plot of residuals far from the straight line =\> worst!!!
+  
+  **concurvity():** sst with log_chl_2m \~0.5
+
+**C-Index:** 0.552
+
+**AIC:** 3383.713
+
+# GAM with tweedie distribution
+
+## #1: The dynamic variables + depth
+
+```{r}
+gam<-gam(pma_s~s(sst)+s(log_chl)+s(log_chl_2m)+s(depth), offset=log(effort_length), data=pma_train, family = tw(), method = "REML")
+
+summary(gam)
+par(mfrow=c(2,2))
+gam.check(gam)
+plot(gam,pages=1,se=T,shade=T)
+concurvity(gam, full=F)
+
+gam_pred<-data.frame(predict(gam,se.fit=T,newdata=pma_test,type="response", backtransform=F))
+gam_pred_fit<-gam_pred$fit
+cindex_gam<-rcorr.cens(gam_pred_fit,pma_test$pma_s)
+print(cindex_gam)
+AIC(gam)
+```
+
+**Significative variables**: depth
+
+**Deviance explained**=1.35%
+
+**gam.check() output:** all variables with high p-values
+
+QQ-plot of residuals far from the straight line =\> a little bit better,
+more "clustered"
+
+**concurvity():** sst with log_chl_2m \~0.5
+
+**C-Index:** 0.557
+
+**AIC:** 2496.589
+
+## #2: sst, chl and chl_2m as linear
+
+gam<-gam(pma_s~sst+log_chl+log_chl_2m+s(depth), offset=log(effort_length), data=pma_train, family = tw(), method = "REML")
+
+summary(gam)
+par(mfrow=c(2,2))
+gam.check(gam)
+plot(gam,pages=1,se=T,shade=T)
+concurvity(gam, full=F)
+
+gam_pred<-data.frame(predict(gam,se.fit=T,newdata=pma_test,type="response", backtransform=F))
+gam_pred_fit<-gam_pred$fit
+cindex_gam<-rcorr.cens(gam_pred_fit,pma_test$pma_s)
+print(cindex_gam)
+AIC(gam)
+```
+
+**Significative variables**: depth
+
+**Deviance explained**=1.35%
+
+**gam.check() output:** all variables with high p-values
+
+QQ-plot of residuals far from the straight line =\> a little bit better,
+more "clustered"
+
+**concurvity():** sst with log_chl_2m \~0.5
+
+**C-Index:** 0.557
+
+**AIC:** 2496.566
+
+## #3: Include month as factor
+
+gam<-gam(pma_s~s(sst)+s(log_chl)+s(log_chl_2m)+s(depth)+month, offset=log(effort_length), data=pma_train, family = tw(), method = "REML")
+
+summary(gam)
+par(mfrow=c(2,2))
+gam.check(gam)
+plot(gam,pages=1,se=T,shade=T)
+concurvity(gam, full=F)
+
+gam_pred<-data.frame(predict(gam,se.fit=T,newdata=pma_test,type="response", backtransform=F))
+gam_pred_fit<-gam_pred$fit
+cindex_gam<-rcorr.cens(gam_pred_fit,pma_test$pma_s)
+print(cindex_gam)
+AIC(gam)
+```
+
+**Significative variables**: depth
+
+**Deviance explained**=1.36%
+
+**gam.check() output:** all variables with high p-values
+
+QQ-plot of residuals far from the straight line =\> a little bit better,
+more "clustered"
+
+**concurvity():** sst with log_chl_2m \~0.5
+
+**C-Index:** 0.559
+
+**AIC:** 2496.282
+
+## #4: Remove log_chl_2m because of concurvity and add Long and Lat separate
+
+```{r}
+gam<-gam(pma_s~s(Long)+s(Lat)+s(sst)+s(log_chl)+s(depth)+month, offset=log(effort_length), data=pma_train, family = tw(), method = "REML")
+
+summary(gam)
+par(mfrow=c(2,2))
+gam.check(gam)
+plot(gam,pages=1,se=T,shade=T)
+concurvity(gam, full=F)
+
+gam_pred<-data.frame(predict(gam,se.fit=T,newdata=pma_test,type="response", backtransform=F))
+gam_pred_fit<-gam_pred$fit
+cindex_gam<-rcorr.cens(gam_pred_fit,pma_test$pma_s)
+print(cindex_gam)
+AIC(gam)
+```
+
+**Significative variables**: Long, Lat and depth
+
+**Deviance explained**=3.6%
+
+**gam.check() output:** all variables with high p-values
+
+QQ-plot of residuals far from the straight line =\> better, upper part
+closer to the straight line
+
+**concurvity():** Long, Lat and depth \~0.55
+
+**C-Index:** 0.596
+
+**AIC:** 2456.76
+
+## #5: Join Long and Lat in the same smooth as interaction and month as factor
+
+gam<-gam(pma_s~s(Long, Lat)+s(sst)+s(log_chl_2m)+s(depth), offset=log(effort_length), data=pma_train, family = tw(), method = "REML")
+
+summary(gam)
+par(mfrow=c(2,2))
+gam.check(gam)
+plot(gam,pages=1,se=T,shade=T)
+concurvity(gam, full=F)
+
+gam_pred<-data.frame(predict(gam,se.fit=T,newdata=pma_test,type="response", backtransform=F))
+gam_pred_fit<-gam_pred$fit
+cindex_gam<-rcorr.cens(gam_pred_fit,pma_test$pma_s)
+print(cindex_gam)
+AIC(gam)
+
+**Significative variables**: interaction of Long and Lat, and depth
+
+**Deviance explained**=4.3%
+
+**gam.check() output:** all variables with high p-values
+
+QQ-plot of residuals far from the straight line =\> a little bit better,
+more "clustered"
+
+**concurvity():** Long+Lat and depth \~0.7
+
+**C-Index:** 0.613
+
+**AIC:** 2461.736
+
+## #6: Join dist_coast and dist_500m in same smooth as interaction
+
+```{r}
+gam<-gam(pma_s~s(sqrt_dist_coast, sqrt_dist_500m)+s(sst)+s(log_chl), offset=log(effort_length), data=pma_train, family = tw(), method = "REML")
+
+summary(gam)
+par(mfrow=c(2,2))
+gam.check(gam)
+plot(gam,pages=1,se=T,shade=T)
+concurvity(gam, full=F)
+
+gam_pred<-data.frame(predict(gam,se.fit=T,newdata=pma_test,type="response", backtransform=F))
+gam_pred_fit<-gam_pred$fit
+cindex_gam<-rcorr.cens(gam_pred_fit,pma_test$pma_s)
+print(cindex_gam)
+AIC(gam)
+```
+
+**Significative variables**: non
+
+**Deviance explained**=0.969%
+
+**gam.check() output:** log_chl with low p-value (k=9)
+
+QQ-plot of residuals far from the straight line =\> a little bit better,
+more "clustered"
+
+**concurvity():** all less than 0.5
+
+**C-Index:** 0.523
+
+**AIC:** 2521.45
+
+## #7: Remove depth and maintain Long+Lat interaction. Remove sst and change log_chl for log_chl_2m with month as factor
+
+gam<-gam(pma_s~s(Long, Lat)+s(log_chl_2m, by=month), offset=log(effort_length), data=pma_train, family = tw(), method = "REML")
+
+summary(gam)
+par(mfrow=c(2,2))
+gam.check(gam)
+plot(gam,pages=1,se=T,shade=T)
+concurvity(gam, full=F)
+
+gam_pred<-data.frame(predict(gam,se.fit=T,newdata=pma_test,type="response", backtransform=F))
+gam_pred_fit<-gam_pred$fit
+cindex_gam<-rcorr.cens(gam_pred_fit,pma_test$pma_s)
+print(cindex_gam)
+AIC(gam)
+```
+
+**Significative variables**: Long+Lat, log_chl_2m month5, month7, month8
+
+**Deviance explained**=3.69%
+
+**gam.check() output:** all variables with high p-values
+
+QQ-plot of residuals far from the straight line =\> a little bit better,
+more "clustered"
+
+**concurvity():** all less than 0.5
+
+**C-Index:** 0.620
+
+**AIC:** 2466.92
+
+## #8: Just the dynamic variables by month
+
+```{r}
+gam<-gam(pma_s~s(sst, by=month)+s(log_chl, by=month)+s(log_chl_2m, by=month), offset=log(effort_length), data=pma_train, family = tw(), method = "REML")
+
+summary(gam)
+par(mfrow=c(2,2))
+gam.check(gam)
+plot(gam,pages=1,se=T,shade=T)
+concurvity(gam, full=F)
+
+gam_pred<-data.frame(predict(gam,se.fit=T,newdata=pma_test,type="response", backtransform=F))
+gam_pred_fit<-gam_pred$fit
+cindex_gam<-rcorr.cens(gam_pred_fit,pma_test$pma_s)
+print(cindex_gam)
+AIC(gam)
+```
+
+**Significative variables**:sst month6, log_chl_2m month5
+
+**Deviance explained**=1.87%
+
+**gam.check() output:** all variables with high p-values
+
+QQ-plot of residuals far from the straight line =\> a little bit better,
+more "clustered"
+
+**concurvity():** sst month5 and log_chl_2m month5; sst month8 and
+log_chl_2m month8 \~0.9
+
+sst month6 and log_chl_2m month6 \~0.5
+
+sst month8 and log_chl month8; log_chl month8 and log_chl_2m month8
+\~0.8
+
+**C-Index:** 0.571
+
+**AIC:** 2519.203
+
+## #9: Include observer as random factor and dist_smnt
+
+```{r}
+gam<-gam(pma_s~s(sst)+s(log_chl)+s(depth)+s(dist_smnt)+s(observer, bs="re", by=dum), offset=log(effort_length), data=pma_train, family = tw(), method = "REML") 
+
+summary(gam) 
+par(mfrow=c(2,2)) 
+gam.check(gam) 
+plot(gam,pages=1,se=T,shade=T) 
+concurvity(gam, full=F)  
+gam_pred<-data.frame(predict(gam,se.fit=T,newdata=pma_test,type="response", backtransform=F)) 
+gam_pred_fit<-gam_pred$fit 
+cindex_gam<-rcorr.cens(gam_pred_fit,pma_test$pma_s) 
+print(cindex_gam)
+AIC(gam)
+```
+
+**Significative variables**: log_chl (p\<0.1)
+
+**Deviance explained**=0.268
+
+**gam.check() output:** log_chl with low p-value
+
+QQ-plot of residuals far from the straight line =\> a little bit better,
+more "clustered"
+
+**concurvity():** code_observer with para =\> 0.7
+
+**C-Index:** 0.491
+
+**AIC:** 2421.161
+
+## #10: Include boat as random factor
+
+```{r}
+gam<-gam(pma_s~s(sst)+s(log_chl)+s(depth)+s(dist_smnt)+s(boat, bs="re", by=dum), offset=log(effort_length), data=pma_train, family = tw(), method = "REML") 
+
+summary(gam) 
+par(mfrow=c(2,2)) 
+gam.check(gam) 
+plot(gam,pages=1,se=T,shade=T) 
+concurvity(gam, full=F)  
+gam_pred<-data.frame(predict(gam,se.fit=T,newdata=pma_test,type="response", backtransform=F)) 
+gam_pred_fit<-gam_pred$fit 
+cindex_gam<-rcorr.cens(gam_pred_fit,pma_test$pma_s) 
+print(cindex_gam)
+AIC(gam)
+```
+
+**Significative variables**: log_chl (p\<0.1)
+
+**Deviance explained**=0.268
+
+**gam.check() output:** all variables with high p-values
+
+QQ-plot of residuals far from the straight line =\> a little bit better,
+more "clustered"
+
+**concurvity():** code_boat with para =\> 0.7
+
+**C-Index:** 0.491
+
+**AIC:** 2421.161
+
+## #11: Just static variables. New calculation for dist_500m and dist_1000. With observer as random factor
+
+```{r}
+gam<-gam(pma_s~s(depth)+s(slope)+s(dist_500m)+s(dist_1000m)+s(dist_smnt)+s(dist_coast)+s(observer, bs="re", by=dum), offset=log(effort_length), data=pma_train, family = tw(), method = "REML") 
+
+summary(gam) 
+par(mfrow=c(2,2)) 
+gam.check(gam) 
+plot(gam,pages=1,se=T,shade=T) 
+concurvity(gam, full=F)  
+gam_pred<-data.frame(predict(gam,se.fit=T,newdata=pma_test,type="response", backtransform=F)) 
+gam_pred_fit<-gam_pred$fit 
+cindex_gam<-rcorr.cens(gam_pred_fit,pma_test$pma_s) 
+print(cindex_gam)
+AIC(gam)
+```
+
+**Significative variables**: depth
+
+**Deviance explained**=0.709
+
+**gam.check() output:** all variables with high p-values
+
+QQ-plot of residuals far from the straight line =\> a little bit better,
+more "clustered"
+
+**concurvity():** code_boat with para =\> 0.7
+
+dist_500m and dist_1000 =\> 0.9
+
+**C-Index:** 0.517
+
+**AIC:** 2419.989
+
+## #12: Remove dist_500m and observer
+
+```{r}
+gam<-gam(pma_s~s(depth)+s(slope)+s(dist_1000m)+s(dist_smnt)+s(dist_coast), offset=log(effort_length), data=pma_train, family = tw(), method = "REML") 
+
+summary(gam) 
+par(mfrow=c(2,2)) 
+gam.check(gam) 
+plot(gam,pages=1,se=T,shade=T) 
+concurvity(gam, full=F)  
+gam_pred<-data.frame(predict(gam,se.fit=T,newdata=pma_test,type="response", backtransform=F)) 
+gam_pred_fit<-gam_pred$fit 
+cindex_gam<-rcorr.cens(gam_pred_fit,pma_test$pma_s) 
+print(cindex_gam)
+AIC(gam)
+```
+
+**Significative variables**: depth
+
+**Deviance explained**=0.685
+
+**gam.check() output:** all variables with high p-values
+
+QQ-plot of residuals far from the straight line =\> a little bit better,
+more "clustered"
+
+**concurvity():** all good!
+  
+  **C-Index:** 0.518
+
+**AIC:** 2418.407
