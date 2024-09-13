@@ -10,7 +10,9 @@ The code is developed in the scope of Work Package 4 of the project OCEAN funded
 
 The work in project OCEAN's Work Package 4 is tailored at reducing risk of ship collision with marine mammals (namely large whales) by providing mariners with up-to-date information about risk along their routes. Different strategies are used to identify risk areas based on three approaches: 1) identification of suitable habitat for animal occurrence; 2) voluntary reporting of visual detections; and 3) passive acoustic monitoring (PAM) of acoustically active animals.
 
-The code in this repository supports the first approach (identification of suitable habitat for animal occurrence), by using the sperm whale (_Physeter macrocephalus_) in the Azores archipelago (Portugal) as a study case, and can easily be adapted to any other modelling approaches, areas and organisms. The code enables producing predictions as raster files and converting rasters to polygons based on a threshold, in order to comply with current maritime communication standards. The code also contains a routine to communicate with the European Navigational Hazard Infrastructure also developed by the OCEAN Project.
+The code in this repository supports the first approach (identification of suitable habitat for animal occurrence), by using the sperm whale (_Physeter macrocephalus_) in the Azores archipelago (Portugal) as a study case, developed in Task 4.2 of the OCEAN project. This can easily be adapted to any other modelling approaches, areas and organisms. Code for operationalization of the model (ie for producing regular predictions) is developed in Task 4.3 of the OCEAN project.
+
+The code enables producing predictions as raster files and converting rasters to polygons based on a threshold, in order to comply with current maritime communication standards. The code also contains a routine to communicate with the European Navigational Hazard Infrastructure also developed by the OCEAN Project.
 
 The tasks performed by the different routines are illustrated below
 
