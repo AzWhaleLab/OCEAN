@@ -1,0 +1,166 @@
+
+
+# download environmental data via the Copernicus Marine Toolbox#
+
+rm(list=ls())
+
+# Please run install.packages("lubridate") is you have not already installed it
+library(lubridate)
+
+path="C:/R/Projects/OCEAN/Tool_R_codes/DOM"
+envdir=paste(path,"/environmental_data/", sep="")
+azores_shp="D:/GIS/Azores/Cartografia/Az/Admin/Shapefiles Azores/Azores WGS84"
+chl_dir=paste(path,"/environmental_data/netcdfs_raw/chl/", sep="")
+sst_dir=paste(path,"/environmental_data/netcdfs_raw/sst/", sep="")
+
+# If your are using Rstudio, please follow the article to add your path to the Copernicus Marine Toolbox
+path_copernicus_marine_toolbox = "C:/Users/User/miniforge3/envs/cmc/Scripts/copernicusmarine.exe"
+
+#out_dir = setwd("C:/R/Projects/OCEAN/Tool_R_codes/DOM/environmental_data/netcdfs_raw/CM_toolbox_test/") # set work directory
+
+#USERNAME = readline("Enter your username: ") # input your username
+
+#PASSWORD = readline("Enter your password: ") # input your password
+
+USERNAME<-"xxxxx"
+PASSWORD<-"xxxxx"
+
+###Create folders
+
+#dynamic directories
+get_date=Sys.Date()
+most_recent=as.character(Sys.Date()-3)
+
+capture.output(get_date, file =paste(envdir,'get_date.csv'))
+
+tmpdir=paste(envdir,"netcdfs_raw/temp_",get_date,sep="")
+if (!file.exists(tmpdir)){
+  dir.create(tmpdir)
+}
+
+# ================ Variables for your query ================
+
+###SST sea surface temperature######
+
+# Product and dataset IDs
+productId = "cmems_obs-sst_glo_phy_nrt_l4_P1D-m"
+
+# Ocean Variable(s)
+#Please keep the space at the beginning (" --variable "variable name"")
+variable_sst <- c(" --variable analysed_sst")
+
+# Time range
+date_min = ymd(most_recent) # start_date
+date_max = ymd(most_recent) # end_date
+
+# Geographic area and depth level 
+lon = list(-60, 35)  # lon_min, lon_max
+lat = list(-40,70) # lat_min, lat_max
+depth = list(0, 1) # depth_min, depth_max
+
+# ===================== Method 1. Copernicus Marine Client command ==============================
+
+# Output filename    
+#out_name_chl = paste("cmems_obs-oc_glo_bgc-plankton_nrt_l4-gapfree-multi-4km_P1D_",date_min,".nc", sep="")
+
+out_name_sst = paste("SST", ".nc", sep="")
+
+#Warning: On Rstudio replace ("copernicus-marine subset -i" with (path_copernicus_marine_toolbox, " subset -i"
+command_sst <- paste (path_copernicus_marine_toolbox, " subset -i", productId,                    
+                      "-x", lon[1], "-X", lon[2],                  
+                      "-y", lat[1], "-Y", lat[2],
+                      "-t", date_min, "-T", date_max,
+                      "-z", depth[1], "-Z", depth[2],
+                      variable_sst, "-o", tmpdir,        
+                      "-f", out_name_sst, "--force-download",
+                      sep = " ")
+
+print(command_sst)
+
+system(command_sst, intern = TRUE)
+
+###CHL ######
+
+# Product and dataset IDs
+productId = "cmems_obs-oc_glo_bgc-plankton_nrt_l4-gapfree-multi-4km_P1D"
+
+# Ocean Variable(s)
+#Please keep the space at the beginning (" --variable "variable name"")
+variable_chl <- c(" --variable CHL")
+
+# Time range
+date_min = ymd(most_recent) # start_date
+date_max = ymd(most_recent) # end_date
+
+# Geographic area and depth level 
+lon = list(-60, 35)  # lon_min, lon_max
+lat = list(-40,70) # lat_min, lat_max
+depth = list(0, 1) # depth_min, depth_max
+
+# ===================== Method 1. Copernicus Marine Client command ==============================
+
+# Output filename    
+#out_name_chl = paste("cmems_obs-oc_glo_bgc-plankton_nrt_l4-gapfree-multi-4km_P1D_",date_min,".nc", sep="")
+
+out_name_chl = paste("CHL", ".nc", sep="")
+
+#Warning: On Rstudio replace ("copernicus-marine subset -i" with (path_copernicus_marine_toolbox, " subset -i"
+command_chl <- paste (path_copernicus_marine_toolbox, " subset -i", productId,                    
+                  "-x", lon[1], "-X", lon[2],                  
+                  "-y", lat[1], "-Y", lat[2],
+                  "-t", date_min, "-T", date_max,
+                  "-z", depth[1], "-Z", depth[2],
+                  variable_chl, "-o", tmpdir,        
+                  "-f", out_name_chl, "--force-download",
+                  sep = " ")
+
+print(command_chl)
+
+system(command_chl, intern = TRUE)
+
+
+###CHL the previous 2 months######
+
+# Time range
+date_min = ymd(most_recent) # start_date
+dates<-as.POSIXct(paste(date_min, "00:00:00", sep=""))
+#date_min<-as.Date(dates-1*24*60*60*60)
+#After Copernicus is running correctly, CHANGE THIS to get CHL from the previous 2 MONTHS ##
+#Now it is only 2 weeks
+
+date_min<-as.Date(dates-1*24*60*60*11)
+
+
+date_max = ymd(most_recent) # start_date
+dates<-as.POSIXct(paste(date_max, "00:00:00", sep=""))
+#date_min<-as.Date(dates-1*24*60*60*60)
+#After Copernicus is running correctly, CHANGE THIS to get CHL from the previous 2 MONTHS ##
+#Now it is only 2 weeks
+
+date_min<-as.Date(dates-1*24*60*60*11)
+
+# Geographic area and depth level 
+lon = list(-60, 35)  # lon_min, lon_max
+lat = list(0,70) # lat_min, lat_max
+depth = list(0, 1) # depth_min, depth_max
+
+# ===================== Method 1. Copernicus Marine Client command ==============================
+
+# Output filename    
+#out_name = paste("cmems_obs-oc_glo_bgc-plankton_nrt_l4-gapfree-multi-4km_P1D_",date_min,".nc", sep="")
+
+out_name_chl_2m = paste("CHL_2m", ".nc", sep="")
+
+#Warning: On Rstudio replace ("copernicus-marine subset -i" with (path_copernicus_marine_toolbox, " subset -i"
+command_chl_2m <- paste (path_copernicus_marine_toolbox, " subset -i", productId,                    
+                  "-x", lon[1], "-X", lon[2],                  
+                  "-y", lat[1], "-Y", lat[2],
+                  "-t", date_min, "-T", date_max,
+                  "-z", depth[1], "-Z", depth[2],
+                  variable_chl, "-o", tmpdir,          
+                  "-f", out_name_chl_2m, "--force-download",
+                  sep = " ")
+
+print(command_chl_2m)
+
+system(command_chl_2m, intern = TRUE)

@@ -1,0 +1,17 @@
+
+##Automate R script https://anderfernandez.com/en/blog/how-to-automate-r-scripts-on-windows-and-mac/
+
+#install.packages("taskscheduleR")
+library(taskscheduleR)
+
+#taskscheduleR:::taskschedulerAddin()
+
+fichero <- "C:/R/Projects/OCEAN/Tool_R_codes/DOM/New_codes_DOM/Download_data_from_CMEMS_DOM_tool.R"
+
+taskscheduler_create(taskname = "download_CMEMS_data", 
+                     rscript = fichero,
+                     schedule = "DAILY", 
+                     starttime = format(Sys.time(), "11:39:00"), 
+                     startdate = format(Sys.time(), "30/04/2024"))
+
+#taskscheduler_delete("download_CMEMS_data")

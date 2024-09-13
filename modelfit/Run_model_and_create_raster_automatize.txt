@@ -1,0 +1,167 @@
+
+##Run model and create raster
+
+# Prepare the files to run the model
+
+rm(list=ls())
+
+library(sp)
+library(raster)
+library(ncdf4)
+library(nlme)
+library(mgcv)
+library(sf)
+
+
+# Set working directories and load packages
+
+path="C:/R/Projects/OCEAN/Tool_R_codes/DOM"
+envdir=paste(path,"/environmental_data/", sep="")
+staticdir=paste0(path, "/static_variables/", sep="")
+oceandir=paste(path, "/output/", sep="")
+gam_dir=paste(path,"/GAM/", sep="")
+azores_shp="D:/GIS/Azores/Cartografia/Az/Admin/Shapefiles Azores/Azores WGS84"
+chl_dir=paste(path,"/environmental_data/netcdfs_raw/chl/", sep="")
+sst_dir=paste(path,"/environmental_data/netcdfs_raw/sst/", sep="")
+
+#dynamic directories
+get_date=Sys.Date()
+most_recent=as.character(Sys.Date()-3)
+
+finaldir=paste(envdir,get_date,sep="");dir.create(finaldir)
+if(!file.exists(finaldir)){
+  dir.create(finaldir)
+}
+
+#grid
+template=raster()
+res(template)=0.1
+xmin(template)=-33
+xmax(template)=-22
+ymin(template)=35
+ymax(template)=42
+crs(template)="+proj=longlat +datum=WGS84 +no_defs"
+
+
+grid<-read.csv(paste0(staticdir, "grid_cntr.csv",sep=""))
+grid$X<-NULL  
+pma_base<-data.frame(Long=grid$Lng_cntwgs84,
+                     Lat=grid$Lt_cntwgs84,
+                     observer=1)
+
+# Get file list with full path and file names
+#chl
+
+chl_nc <-sample(list.files(chl_dir), 1)
+file_chl <-paste(chl_dir, chl_nc, sep="")
+write.csv(file_chl,paste(envdir, "file_chl.csv"))
+chla<-raster(file_chl, varname="CHL")
+chla_new<-log(raster::resample(chla, template, method="bilinear")+0.001)
+writeRaster(chla_new,paste(finaldir,"/chl",sep=""),overwrite=T)
+
+
+#sst
+sst_nc <-sample(list.files(sst_dir), 1)
+file_sst <-paste(sst_dir, sst_nc, sep="")
+write.csv(file_sst,paste(envdir, "file_sst.csv"))
+sst=raster(file_sst, varname="analysed_sst")
+sst=(raster::resample(sst, template, method="bilinear")-273.15)
+writeRaster(sst,paste(finaldir,"/sst",sep=""),overwrite=T)
+
+#Check if no environmental data is missing
+FileList_get_date=list.files(paste(envdir,get_date,sep=""),pattern="*.grd$")
+FileList_full=c("sst.grd","chl.grd")
+FileList_missing=setdiff(FileList_full, FileList_get_date)
+FileList_final=list.files(paste(envdir,get_date,sep=""),patter="*.grd$",full.names=T)
+return_list=list("FileList_final"=FileList_final, "FileList_missing"=FileList_missing)
+#if FileList_missing = 0 then the model can run
+return_list
+
+capture.output(return_list, file =paste(envdir,'return_list.csv'))
+
+stat_var<-read.csv(paste0(staticdir,"stat_var_grid.csv"),header=T)
+
+## sst and chl
+
+varname<-c("log_chl","sst")
+coordinates(grid)<-~Lng_cntwgs84+Lt_cntwgs84
+for(i in 1:2){
+  r<-raster(return_list$FileList_final[i])
+  e<-raster::extract(r,grid)
+  df<-as.data.frame(e)
+  names(df)<-varname[i]
+  if(i==1){
+    df1<-df} else {
+      df2<-cbind(df1,df)
+      df1<-df2
+    }
+}
+
+dym_var<-df2
+
+# Load the model
+
+pma_gam<-read.csv(paste0(gam_dir,"pma_final_gam2.csv"),header=T)
+gam<-gam(presence ~ s(sst)+s(log_chl_2m)+s(depth)+s(sqrt_dist_smnt), data=pma_gam, family=binomial, method="REML")
+summary<-summary(gam)
+
+capture.output(summary, file =paste(envdir,'summary.csv'))
+
+# Predict
+
+#pred_df<-cbind(pma_base, dym_var, stat_var)
+
+pred_df<-cbind(dym_var, stat_var)
+
+pred_df$sqrt_dist_smnt<-sqrt(pred_df$dist_smnt)
+
+pred_df$log_chl_2m<-pred_df$log_chl
+
+
+pred<-data.frame(predict(gam, se.fit=T, newdata=pred_df, type="response", backtransform=F))
+
+write.csv(pred,paste(envdir, "pred.csv"))
+
+grid<-as.data.frame(grid)
+lon<-grid$Lng_cntwgs84
+lat<-grid$Lt_cntwgs84
+pred_map<-cbind(lon, lat, pred)
+
+write.csv(pred_map,paste(envdir, "pred_map.csv"))
+
+write.csv(most_recent,paste(envdir, "most_recent.csv"))
+
+pred_fit<-pred_map[-c(4)]
+sp::coordinates(pred_fit) <- ~lon+lat
+sp::proj4string(pred_fit) <-CRS("+proj=longlat +datum=WGS84 +no_defs")
+# coerce to SpatialPixelsDataFrame
+gridded(pred_fit) <- TRUE
+# coerce to raster
+rasterDF <- raster(pred_fit)
+writeRaster(rasterDF, paste(oceandir,"Predictions_fit_",get_date, sep=""),format = "GTiff", overwrite = TRUE)
+
+png(paste0(oceandir,"Predictions_fit_",get_date, sep="",'.png'),width=8,height=6.5,units="in",res=300) 
+plot(rasterDF)
+dev.off()
+
+##add Azores
+azores <- read_sf(paste0(azores_shp,'/Azores.shp'))
+
+png(paste0(oceandir,"Azores_Predictions_fit_",get_date, sep="",'.png'),width=8,height=6.5,units="in",res=300) 
+plot(rasterDF)
+plot(azores,add=T)
+dev.off()
+
+pred_se<-pred_map[-c(3)]
+sp::coordinates(pred_se) <- ~lon+lat
+sp::proj4string(pred_se) <-CRS("+proj=longlat +datum=WGS84 +no_defs")
+# coerce to SpatialPixelsDataFrame
+gridded(pred_se) <- TRUE
+# coerce to raster
+rasterDF <- raster(pred_se)
+rasterDF
+writeRaster(rasterDF, paste(oceandir,"Predictions_se_",get_date, sep=""),format = "GTiff", overwrite = TRUE)
+
+png(paste0(oceandir,"Predictions_se_",get_date, sep="",'.png'),width=8,height=6.5,units="in",res=300) 
+plot(rasterDF)
+dev.off()

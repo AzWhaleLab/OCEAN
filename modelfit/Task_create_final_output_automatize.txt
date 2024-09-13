@@ -1,0 +1,17 @@
+
+##Automate R script https://anderfernandez.com/en/blog/how-to-automate-r-scripts-on-windows-and-mac/
+
+#install.packages("taskscheduleR")
+library(taskscheduleR)
+
+#taskscheduleR:::taskschedulerAddin()
+
+fichero <- "C:/R/Projects/OCEAN/Tool_R_codes/DOM/New_codes_DOM/Create_final_output_automatize.R"
+
+taskscheduler_create(taskname = "polygon_prediction", 
+                     rscript = fichero,
+                     schedule = "DAILY", 
+                     starttime = format(Sys.time(), "11:45:00"), 
+                     startdate = format(Sys.time(), "30/04/2024"))
+
+#taskscheduler_delete("polygon_prediction")
