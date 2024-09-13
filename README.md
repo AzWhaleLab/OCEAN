@@ -18,11 +18,11 @@ The tasks performed by the different routines are illustrated below
 
 The routines include code to:
 
-> Fit Generalized Linear Models and test model performance
-> Obtain and prepare [predictive] covariates from an external data server using an API
-> Create predictive maps in raster format on a regular basis [daily]
-> Use a threshold to produce polygons from the raster maps and clean polygons delete a certain size
-> Export polygons to an external data server [European Navigational Hazard Infrastructure] using an API 
+- Fit Generalized Linear Models and test model performance
+- Obtain and prepare [predictive] covariates from an external data server using an API
+- Create predictive maps in raster format on a regular basis [daily]
+- Use a threshold to produce polygons from the raster maps and clean polygons delete a certain size
+- Export polygons to an external data server [European Navigational Hazard Infrastructure] using an API 
 
 
 ![image](https://github.com/user-attachments/assets/e0ff0b71-6f24-494e-8af1-ef0d2761c065)
