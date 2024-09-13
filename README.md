@@ -5,14 +5,14 @@ Framework for regular habitat suitability predictions based on Environmental Nic
 
 This repository contains code in R to develop and operationalize regular predictions of habitats with high probability of whale [or any other organism] occurrence.
 
-NOTICE: The code is still under development and annotation is underway. It is assumed that users are familiar with statistical modelling of animal distribution.
+NOTICE: The code is still under development and annotation is underway. It is assumed that users are familiar with statistical modelling of animal distributions.
 
 The code presented here is intended to illustrate how to produce regular predictions based on an Environmental Niche Model (aka Species Distribution Model) and export the predictions to an external server.
 The code is developed in the scope of Work Package 4 of the project OCEAN funded by the European Union’s Horizon Europe research and innovation programme (grant agreement No.101076983). Detailed information about project OCEAN's goals and results can be found in https://ocean-navigation-awareness.eu.
 
 The work in project OCEAN's Work Package 4 is tailored at reducing risk of ship collision with marine mammals (namely large whales) by providing mariners with up-to-date information about risk along their routes. Different strategies are used to identify risk areas based on three approaches: 1) identification of suitable habitat for animal occurrence; 2) voluntary reporting of visual detections; and 3) passive acoustic monitoring (PAM) of acoustically active animals.
 
-The code in this repository supports the first approach (identification of suitable habitat for animal occurrence), by using the sperm whale (_Physeter macrocephalus_) in the Azores archipelago (Portugal) as a study case. In the scope of the work developed in Task 4.2 of the OCEAN project a Generalized Additive Model (GAM) was fitted to sightings per unit effort from data obtained by the Azores Fisheries Observer Program (https://www.popaobserver.org). The model fitting apprach is documented in GAMmodelDOM.txt. Nevertheless, the framework is independent from modelling approach.
+The code in this repository supports the first approach (identification of suitable habitat for animal occurrence), using the sperm whale (_Physeter macrocephalus_) in the Azores archipelago (Portugal) as a study case. In the scope of the work developed in Task 4.2 of the OCEAN project a Generalized Additive Model (GAM) was fitted to sightings per unit effort from data obtained by the Azores Fisheries Observer Program (https://www.popaobserver.org). The model fitting approach is documented in GAMmodelDOM.txt. Nevertheless, the framework is independent from modelling approach.
 
 The code enables producing predictions as raster files and converting rasters to polygons based on a threshold, in order to comply with current maritime communication standards. The code also contains a routine to communicate with the European Navigational Hazard Infrastructure also developed by the OCEAN Project.
 
