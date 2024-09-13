@@ -5,7 +5,7 @@ Framework for regular habitat suitability predictions based on Environmental Nic
 
 This repository contains code in R to develop and operationalize regular predictions of habitats with high probability of whale [or any other organism] occurrence.
 
-NOTICE: The code is still under development and annotation is underway.
+#NOTICE: The code is still under development and annotation is underway.
 
 The code presented here is intended to illustrate how to produce regular predictions based on an Environmental Niche Model (aka Species Distribution Model) and export the predictions to an external server.
 The code is developed in the scope of Work Package 4 of the project OCEAN funded by the European Union’s Horizon Europe research and innovation programme (grant agreement No.101076983). Detailed information about project OCEAN's goals and results can be found in https://ocean-navigation-awareness.eu.
