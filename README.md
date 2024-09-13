@@ -1,6 +1,8 @@
 # OCEAN
 Framework for regular habitat suitability predictions based on Environmental Niche Models
 
+![image](https://github.com/user-attachments/assets/ebb539f6-f9a5-45b5-9660-c3d7572294b2)
+
 This repository contains code in R to develop and operationalize regular predictions of habitats with high probability of whale [or any other organism] occurrence.
 
 NOTICE: The code is still under development and annotation is underway.
