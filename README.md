@@ -25,7 +25,7 @@ The routines include code to:
 - Fit Generalized Additive Models and test model performance
 - Obtain and prepare [predictive] covariates from an external data server using an API
 - Create predictive maps in raster format on a regular basis [daily]
-- Use a threshold to produce polygons from the raster maps and clean polygons delete a certain size
+- Use a threshold to produce polygons from the raster maps and remove polygons under a given size
 - Export polygons to an external data server [European Navigational Hazard Infrastructure] using an API 
 
 
