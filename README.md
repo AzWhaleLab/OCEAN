@@ -8,7 +8,7 @@ This repository contains code in R to develop and operationalize regular predict
 NOTICE: The code is still under development and annotation is underway. It is assumed that users are familiar with statistical modelling of animal distributions.
 
 The code presented here is intended to illustrate how to produce regular predictions based on an Environmental Niche Model (aka Species Distribution Model) and export the predictions to an external server.
-The code is developed in the scope of Work Package 4 of the project OCEAN funded by the European Union’s Horizon Europe research and innovation programme (grant agreement No.101076983). Detailed information about project OCEAN's goals and results can be found in https://ocean-navigation-awareness.eu.
+The code is developed in the scope of Work Package 4 of the project OCEAN funded by the European Union’s Horizon Europe research and innovation programme (grant agreement No.101076983). Detailed information about project OCEAN's goals and results can be found in https://ocean-navigation-awareness.eu. Please refer to the Reports wihin that website for further details on the model and predictive tool framework.
 
 The work in project OCEAN's Work Package 4 is tailored at reducing risk of ship collision with marine mammals (namely large whales) by providing mariners with up-to-date information about risk along their routes. Different strategies are used to identify risk areas based on three approaches: 1) identification of suitable habitat for animal occurrence; 2) voluntary reporting of visual detections; and 3) passive acoustic monitoring (PAM) of acoustically active animals.
 
