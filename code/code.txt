@@ -1,0 +1,530 @@
+1	Annex 1: Code
+
+The codes to run and operationalize the high-level framework are described on the following scripts:
+1.	“Download_data_from_CMEMS_DOM_tool” (R code)
+2.	”Run_model_and_create_raster_automatize” (R code)
+3.	“Create_final_output_automatize” (R code)
+4.	“sendData_Acores.ps1” (Power Shell code)
+
+
+1.	“Download_data_from_CMEMS_DOM_tool” (R code)
+
+# Set working directories and load R packages
+
+path="path where the DOM tool is stored"
+envdir=”path to store environmental data”
+azores_shp="path to the Azores shapefile”
+chl_dir=”path to the folder with the Chlorophyll products”
+sst_dir=”path to the folder with the Sea Surface Temperature products”
+
+#Path to copernicusmarine (object of the Copernicus Marine Toolbox)
+path_copernicusmarine: “path directory”
+
+USERNAME<-"xxxxx"
+PASSWORD<-"xxxxx"
+
+#get actual date
+get_date=Sys.Date()
+#lag date (2 months)
+most_recent=as.character(Sys.Date()-60)
+
+###Create folders to store daily products (netcdf files). 
+###Create individual folder for each product
+
+tmpdir=paste(envdir,"netcdfs_raw/temp_",get_date,sep="")
+if (!file.exists(tmpdir)){
+  dir.create(tmpdir)
+}
+
+tmpdir_chl=paste(envdir,"netcdfs_raw/temp_",get_date,"/chl",sep="")
+if (!file.exists(tmpdir_chl)){
+  dir.create(tmpdir_chl)
+}
+
+tmpdir_chl_2m=paste(envdir,"netcdfs_raw/temp_",get_date,"/chl_2m",sep="")
+if (!file.exists(tmpdir_chl_2m)){
+  dir.create(tmpdir_chl_2m)
+}
+
+tmpdir_sst=paste(envdir,"netcdfs_raw/temp_",get_date,"/sst",sep="")
+if (!file.exists(tmpdir_sst)){
+  dir.create(tmpdir_sst)
+}
+
+
+# ================ Variables for your query ================
+
+###SST sea surface temperature######
+
+# Product and dataset IDs
+productId = "cmems_obs-sst_glo_phy_nrt_l4_P1D-m"
+
+# Ocean Variable(s)
+#Please keep the space at the beginning (" --variable "variable name"")
+variable_sst <- c(" --variable analysed_sst")
+
+# Time range
+date_min = ymd(get_date) # start_date
+date_max = ymd(get_date) # end_date
+
+# Geographic area and depth level 
+lon = list(-60, 35)  # lon_min, lon_max
+lat = list(-40,70) # lat_min, lat_max
+depth = list(0, 1) # depth_min, depth_max
+
+# Output filename    
+#out_name_chl = paste("cmems_obs-oc_glo_bgc-plankton_nrt_l4-gapfree-multi-4km_P1D_",date_min,".nc", sep="")
+
+out_name_sst = paste("SST", ".nc", sep="")
+
+command_sst <- paste (path_copernicusmarine, " subset -i", productId,                    
+                      "-x", lon[1], "-X", lon[2],                  
+                      "-y", lat[1], "-Y", lat[2],
+                      "-t", date_min, "-T", date_max,
+                      "-z", depth[1], "-Z", depth[2],
+                      variable_sst, "-o", tmpdir_sst,        
+                      "-f", out_name_sst, "--force-download",
+                      sep = " ")
+
+print(command_sst)
+
+system(command_sst, intern = TRUE)
+
+###CHL ######
+
+# Product and dataset IDs
+productId = "cmems_obs-oc_glo_bgc-plankton_nrt_l4-gapfree-multi-4km_P1D"
+
+# Ocean Variable(s)
+#Please keep the space at the beginning (" --variable "variable name"")
+variable_chl <- c(" --variable CHL")
+
+# Time range
+date_min = ymd(get_date) # start_date
+date_max = ymd(get_date) # end_date
+
+# Geographic area and depth level 
+lon = list(-60, 35)  # lon_min, lon_max
+lat = list(-40,70) # lat_min, lat_max
+depth = list(0, 1) # depth_min, depth_max
+
+# Output filename    
+out_name_chl = paste("CHL", ".nc", sep="")
+
+command_chl <- paste (path_copernicusmarine, " subset -i", productId,                    
+                  "-x", lon[1], "-X", lon[2],                  
+                  "-y", lat[1], "-Y", lat[2],
+                  "-t", date_min, "-T", date_max,
+                  "-z", depth[1], "-Z", depth[2],
+                  variable_chl, "-o", tmpdir_chl,        
+                  "-f", out_name_chl, "--force-download",
+                  sep = " ")
+
+print(command_chl)
+
+system(command_chl, intern = TRUE)
+
+###CHL the previous 2 months######
+
+# Time range
+date_min = ymd(most_recent) # start_date
+dates<-as.POSIXct(paste(date_min, "00:00:00", sep=""))
+
+date_min<-as.Date(dates-1*24*60*60*11)
+
+date_max = ymd(most_recent) # start_date
+dates<-as.POSIXct(paste(date_max, "00:00:00", sep=""))
+
+date_min<-as.Date(dates-1*24*60*60*11)
+
+# Geographic area and depth level 
+lon = list(-60, 35)  # lon_min, lon_max
+lat = list(0,70) # lat_min, lat_max
+depth = list(0, 1) # depth_min, depth_max
+
+# Output filename    
+out_name_chl_2m = paste("CHL_2m", ".nc", sep="")
+
+command_chl_2m <- paste (path_copernicusmarine, " subset -i", productId,                    
+                  "-x", lon[1], "-X", lon[2],                  
+                  "-y", lat[1], "-Y", lat[2],
+                  "-t", date_min, "-T", date_max,
+                  "-z", depth[1], "-Z", depth[2],
+                  variable_chl, "-o", tmpdir_chl_2m,          
+                  "-f", out_name_chl_2m, "--force-download",
+                  sep = " ")
+
+print(command_chl_2m)
+
+system(command_chl_2m, intern = TRUE)
+
+################################################################
+################################################################
+
+2.	”Run_model_and_create_raster_automatize” (R code)
+
+# Set working directories and load R packages
+
+path="path where the DOM tool is stored"
+envdir=”path to store environmental data”
+staticdir=”path to static variables data”
+gam_dir=”path to GAM outputs”
+oceandir= ”path to daily predictions”
+azores_shp="path to the Azores shapefile”
+chl_dir=”path to the folder with the Chlorophyll products”
+sst_dir=”path to the folder with the Sea Surface Temperature products”
+
+
+#get actual date
+get_date=Sys.Date()
+
+###Create folders to store daily products (netcdf files). 
+
+finaldir=paste(envdir,get_date,sep="");dir.create(finaldir)
+if(!file.exists(finaldir)){
+  dir.create(finaldir)
+}
+
+#prediction grid. Define resolution, area and coordinate system.
+template=raster()
+res(template)=0.1
+xmin(template)=-33
+xmax(template)=-22
+ymin(template)=35
+ymax(template)=42
+crs(template)="+proj=longlat +datum=WGS84 +no_defs"
+
+
+grid<-read.csv(paste0(staticdir, "grid_cntr.csv",sep=""))
+grid$X<-NULL  
+pma_base<-data.frame(Long=grid$Lng_cntwgs84,
+                     Lat=grid$Lt_cntwgs84,
+                     observer=1)
+
+# Resample and transform dynamic variables
+#chl
+chl_nc <-sample(list.files(paste(envdir,"netcdfs_raw/temp_",get_date,"/chl",sep="")), 1)
+file_chl<-paste(envdir,"netcdfs_raw/temp_",get_date,"/chl/",chl_nc,sep="")
+chla<-raster(file_chl, varname="CHL")
+chla_new<-log(raster::resample(chla, template, method="bilinear")+0.001)
+writeRaster(chla_new,paste(finaldir,"/chl",sep=""),overwrite=T)
+
+
+#sst
+sst_nc <-sample(list.files(paste(envdir,"netcdfs_raw/temp_",get_date,"/sst",sep="")), 1)
+file_sst <-paste(envdir,"netcdfs_raw/temp_",get_date,"/sst/",sst_nc,sep="")
+sst<-raster(file_sst, varname="analysed_sst")
+sst=(raster::resample(sst, template, method="bilinear")-273.15)
+writeRaster(sst,paste(finaldir,"/sst",sep=""),overwrite=T)
+
+#Check if no environmental data is missing
+FileList_get_date=list.files(paste(envdir,get_date,sep=""),pattern="*.grd$")
+FileList_full=c("sst.grd","chl.grd","chl_2m.grd")
+FileList_missing=setdiff(FileList_full, FileList_get_date)
+FileList_final=list.files(paste(envdir,get_date,sep=""),patter="*.grd$",full.names=T)
+return_list=list("FileList_final"=FileList_final, "FileList_missing"=FileList_missing)
+#if FileList_missing = 0 then the model can run
+return_list
+
+capture.output(return_list, file =paste(envdir,'return_list.csv'))
+
+#Extract dynamic variables data from rasters
+
+varname<-c("log_chl","sst")
+coordinates(grid)<-~Lng_cntwgs84+Lt_cntwgs84
+for(i in 1:2){
+  r<-raster(return_list$FileList_final[i])
+  e<-raster::extract(r,grid)
+  df<-as.data.frame(e)
+  names(df)<-varname[i]
+  if(i==1){
+    df1<-df} else {
+      df2<-cbind(df1,df)
+      df1<-df2
+    }
+}
+
+dym_var<-df2
+
+### Load GAM model ###
+
+pma_gam<-read.csv(paste0(gam_dir,"pma_final_gam2.csv"),header=T)
+gam<-gam(presence ~ s(sst)+s(log_chl_2m)+s(depth)+s(sqrt_dist_smnt), data=pma_gam, family=binomial, method="REML")
+summary<-summary(gam)
+
+### Predict daily distribution of sperm whales using best GAM model ###
+
+#Open static variables 
+stat_var<-read.csv(paste0(staticdir,"stat_var_grid.csv"),header=T) 
+
+#Combine dynamic and static variables data for prediction
+pred_df<-cbind(dym_var, stat_var)
+
+#Transform variables from the prediction data
+pred_df$sqrt_dist_smnt<-sqrt(pred_df$dist_smnt)
+
+pred_df$log_chl_2m<-pred_df$log_chl
+
+#predict outputs
+pred<-data.frame(predict(gam, se.fit=T, newdata=pred_df, type="response", backtransform=F))
+
+write.csv(pred,paste(envdir, "pred.csv"))
+
+grid<-as.data.frame(grid)
+lon<-grid$Lng_cntwgs84
+lat<-grid$Lt_cntwgs84
+pred_map<-cbind(lon, lat, pred)
+
+write.csv(pred_map,paste(envdir, "pred_map.csv"))
+
+#Create prediction map (raster)
+pred_fit<-pred_map[-c(4)]
+sp::coordinates(pred_fit) <- ~lon+lat
+sp::proj4string(pred_fit) <-CRS("+proj=longlat +datum=WGS84 +no_defs")
+# coerce to SpatialPixelsDataFrame
+gridded(pred_fit) <- TRUE
+# coerce to raster
+rasterDF <- raster(pred_fit)
+writeRaster(rasterDF, paste(oceandir,"Predictions_fit_",get_date, sep=""),format = "GTiff", overwrite = TRUE)
+
+png(paste0(oceandir,"Predictions_fit_",get_date, sep="",'.png'),width=8,height=6.5,units="in",res=300) 
+plot(rasterDF)
+dev.off()
+
+##add Azores
+azores <- read_sf(paste0(azores_shp,'/Azores.shp'))
+
+#Create prediction map with Azores (.png)
+png(paste0(oceandir,"Azores_Predictions_fit_",get_date, sep="",'.png'),width=8,height=6.5,units="in",res=300) 
+plot(rasterDF)
+plot(azores,add=T)
+dev.off()
+
+#Create prediction map (standard_error_map)
+pred_se<-pred_map[-c(3)]
+sp::coordinates(pred_se) <- ~lon+lat
+sp::proj4string(pred_se) <-CRS("+proj=longlat +datum=WGS84 +no_defs")
+# coerce to SpatialPixelsDataFrame
+gridded(pred_se) <- TRUE
+# coerce to raster
+rasterDF <- raster(pred_se)
+rasterDF
+writeRaster(rasterDF, paste(oceandir,"Predictions_se_",get_date, sep=""),format = "GTiff", overwrite = TRUE)
+
+png(paste0(oceandir,"Predictions_se_",get_date, sep="",'.png'),width=8,height=6.5,units="in",res=300) 
+plot(rasterDF)
+dev.off()
+
+################################################################
+################################################################
+
+3.	“Create_final_output_automatize” (R code)
+
+# Set working directories and load R packages
+path=&quot;path where the DOM tool is stored&quot;
+envdir=”path to store environmental data”
+oceandir= ”path to daily predictions”
+azores_shp=&quot;path to the Azores shapefile”
+path_powershell=&quot;path to powershell output”
+#get actual date
+get_date=Sys.Date()
+# Specify the path to your raster file
+rasterDF&lt;-raster(paste(oceandir, &quot;Predictions_fit_&quot;,get_date, &quot;.tif&quot;,sep=&quot;&quot;))
+# Extract values from raster
+data_values &lt;- rasterDF[]
+#Eliminate NA values
+data_values &lt;- data_values[!is.na(data_values)]
+write.csv(data_values,paste(envdir, &quot;data_values.csv&quot;))
+#Choose threshold for minimum value of grid cells values
+#quantile 95%
+threshold_area &lt;- quantile(data_values,0.95)
+#Select polygons of the quantile 95%
+regions_shp &lt;- rasterToPolygons(rasterDF, fun=function(x){x&gt;threshold_area},na.rm = T,
+dissolve = T)
+#convert SpatialPolygonsDataFrame to an sf object (library sf)
+regions_shp_sf&lt;-st_as_sf(regions_shp)
+#merge adjacent polygons
+pol0&lt;-as_Spatial(regions_shp_sf)
+pol1&lt;-st_union(st_as_sf(pol0))
+# Save as GeoJSON
+sf::write_sf(pol1, paste(envdir, &quot;pol1.geojson&quot;), driver = &quot;GeoJSON&quot;)
+#Convert polygon to spatial polygons
+pol1_sp &lt;- sf:::as_Spatial(pol1)
+#write.csv(get_date,paste(envdir, &quot;get_date_mid.csv&quot;))
+#Calculate area of each polygon
+for(i in 1:length(pol1_sp@polygons[[1]]@Polygons)){
+coords&lt;- as.data.frame(pol1_sp@polygons[[1]]@Polygons[[i]]@coords)
+area &lt;- round(pol1_sp@polygons[[1]]@Polygons[[i]]@area, digits=2)
+area&lt;-as.data.frame(rep(area, nrow(coords)))
+ID&lt;-i
+ID&lt;-as.data.frame(rep(ID, nrow(coords)))
+
+df&lt;-cbind(coords, area,ID)
+if(i==1){
+df1&lt;-df} else {
+df2&lt;-rbind(df1,df)
+df1&lt;-df2
+}
+}
+colnames(df2)[3] &lt;- &quot;area&quot;
+colnames(df2)[4] &lt;- &quot;ID&quot;
+#select polygon larger than 1 grid cell
+df3 &lt;- df2[which(df2$area &gt; min(df2$area)),]
+# Remove the &quot;Area&quot; column
+df3 &lt;- subset(df3, select = -c(area))
+buildings_df&lt;-df3
+# make a list
+buildings_list &lt;- split(buildings_df, buildings_df$ID)
+# only want lon-lats in the list, not the names
+buildings_list &lt;- lapply(buildings_list, function(x) { x[&quot;ID&quot;] &lt;- NULL; x })
+#convert to list of Polygons
+ps &lt;- lapply(buildings_list, Polygon)
+# add id variable
+p1 &lt;- lapply(seq_along(ps), function(i) Polygons(list(ps[[i]]), ID = names(buildings_list)[i]
+))
+# create SpatialPolygons object of the selected polygons
+my_spatial_polys &lt;- SpatialPolygons(p1, proj4string = CRS(&quot;+proj=longlat
++datum=WGS84&quot;) )
+#write.csv(get_date,paste(envdir, &quot;get_date.csv&quot;))
+##add Azores
+azores &lt;- read_sf(paste0(azores_shp,&#39;/Azores.shp&#39;))
+zee &lt;- read_sf(paste0(azores_shp,&#39;/ZEE.shp&#39;))
+###plot both plots together
+# Set layout using layout()
+##Map of the polygons with Azores islands shapefile##
+png(paste0(oceandir,&quot;Azores_Polygons_defined_&quot;,get_date,
+sep=&quot;&quot;,&#39;.png&#39;),width=8,height=6.5,units=&quot;in&quot;,res=300)
+par(mar=c(4,4,2,2))
+layout(matrix(c(1,2,3,3), 2, 2, byrow = TRUE))
+plot(regions_shp,axes=T)
+plot(azores,add=T)
+plot(pol1_sp,axes=T)
+plot(azores,add=T)
+
+par(mar=c(2,14,2,14))
+plot(my_spatial_polys,axes=T)
+plot(azores,add=T)
+dev.off()
+##EEZ Azores
+##Map of the polygons with EEZ Azores shapefile##
+png(paste0(oceandir,&quot;Zee_Polygons_defined_&quot;,get_date,
+sep=&quot;&quot;,&#39;.png&#39;),width=8,height=6.5,units=&quot;in&quot;,res=300)
+par(mar=c(4,4,2,2))
+layout(matrix(c(1,2,3,3), 2, 2, byrow = TRUE))
+plot(zee$geometry,axes=T)
+plot(regions_shp,add=T)
+plot(azores,add=T)
+plot(zee$geometry,axes=T)
+plot(pol1_sp,add=T)
+plot(azores,add=T)
+par(mar=c(2,14,2,14))
+plot(zee$geometry,axes=T)
+plot(my_spatial_polys,add=T)
+plot(azores,add=T)
+dev.off()
+##Reorganize output for sending
+#dynamic directories
+current_datetime &lt;- format(Sys.time())
+current_datetime &lt;- as.POSIXct(current_datetime, format = &quot;%Y-%m-%d %H:%M:%S&quot;,
+tz=&quot;UTC&quot;)
+#add 10 minutes to have an overlap of 5 minutes between the creation of the output and the
+time the info is sent to CIMNE
+current_datetime_10m&lt;-current_datetime+ 1*10*60
+# Eliminate characters after the first space
+modified_vector &lt;- sub(&quot; -&quot;, &quot;&quot;, current_datetime_10m)
+#Expiration date 25hours after the creation
+expiration_date&lt;-current_datetime_10m+ 1*25*60*60
+# Eliminate characters after the first space
+expiration_date &lt;- sub(&quot; -&quot;, &quot;&quot;, expiration_date)
+#expiration_date&lt;-paste(expiration_date, expiration_time, sep= )
+# &quot;2024-05-07 10:42:49&quot;
+#class &quot;character&quot;
+##Change dataframe to the format LAT LONG
+df3&lt;-df3[,c(2,1,3)]
+#Adapt the polygon info to send to CIMNE
+nlev_ID&lt;-nlevels(factor(df3$ID))
+lev_ID&lt;-levels(factor(df3$ID))
+
+for(j in 1:nlev_ID){
+df_short &lt;- subset(df3, df3$ID==lev_ID[j])
+coords&lt;- as.data.frame(df_short[,1:2])
+for(i in 1:nrow(coords)){
+coords_vector&lt;- as.character(coords[i,])
+vector&lt;- paste0(&quot;[&quot;, coords_vector[1],&quot;,&quot;, coords_vector[2], &quot;]&quot;)
+if(i==1){
+df1&lt;-vector}
+else {
+df2&lt;-paste0(df1,&quot;,&quot;, vector)
+df1&lt;-df2}
+###Add ID and ; and [] at the stard and end of the vector
+df_new&lt;-paste0(modified_vector,&quot;;&quot;,expiration_date,&quot;;MM;LW;SPW;9999;&quot;,&quot;[&quot;,df1, &quot;]&quot;)}
+if(j==1){
+df_middle&lt;-df_new}
+else {
+df_final&lt;-rbind(df_middle,df_new)
+df_middle&lt;-df_final
+}
+}
+##Add ts;exp;type;cat;spc;qty;loc (format of the receiver at CIMNE)###
+df_final_2&lt;-as.data.frame(df_final)
+row_names&lt;-&quot;ts;exp;type;cat;spc;qty;loc&quot;
+df_final_2&lt;-rbind(row_names,df_final_2)
+# Remove row names from an existing data frame
+rownames(df_final_2) &lt;- NULL
+colnames(df_final_2) &lt;- NULL
+# Write the data frame to a CSV file
+write.csv(df_final_2,paste(oceandir,&quot;df_final.csv&quot;),row.names = FALSE, col.names =
+FALSE,quote = FALSE)
+write.csv(df_final_2,&quot;C:/R/Projects/OCEAN/PowerShell/MM_output_new_old.csv&quot;,row.n
+ames = FALSE, col.names = FALSE,quote = FALSE)
+################################################################
+################################################################
+
+4.	“sendData_Acores.ps1” (Power Shell code)
+
+
+# Set working directories and load R packages
+
+path_powershell="path to powershell output”
+
+
+$timestamp = Get-Date -Format "yyyyMMddHHmmssfff"
+$logfile = ".\" + $timestamp + ".txt"
+$Uri = 'http://147.XX.YYY.ZZZ:WWWW/sendData'
+$Form = @{}
+$Form.src = "email address"
+$Form.pwd = "password"
+$Form.key = "key"
+$model_output = Import-Csv -Path " path_powershell\MM_output_new_old.csv" -Delimiter ";"
+$line = 0
+ForEach ($row in $model_output){
+	$Form.ts = $row.ts
+	if ($row.exp -ne "") {
+		$Form.exp = $row.exp
+	}
+	$Form.type = $row.type
+	if ($row.cat -ne "") {
+		$Form.cat = $row.cat
+	}
+	if ($row.spc -ne "") {
+		$Form.spc = $row.spc
+	}
+	if ($row.qty -ne "") {
+		$Form.qty = $row.qty
+	}
+	$Form.loc = $row.loc
+$line = $line + 1
+"__________________________" | Out-File -FilePath $logfile -Append
+"Processing line: " + $line | Out-File -FilePath $logfile -Append
+$result = "Request now working (probably the server is not running or there is no internet access)"
+$result = Invoke-WebRequest -Uri $Uri -Method Post -Form $Form
+$result.StatusCode.ToString() + ", " + $result.StatusDescription + ", " + $result.Content | Out-File -FilePath $logfile -Append
+<# Replace previous line by the next ones in case want to show
+custom activity in the terminal window instead of default output:
+$Form
+$result = Invoke-WebRequest -Uri $Uri -Method Post -Form $Form
+$result.Content
+#>
+Start-Sleep -m 100
+}
+
