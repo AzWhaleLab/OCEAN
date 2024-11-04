@@ -1,24 +1,24 @@
-1	Annex 1: Code
+#1	Annex 3: Code
 
-The codes to run and operationalize the high-level framework are described on the following scripts:
-1.	“Download_data_from_CMEMS_DOM_tool” (R code)
-2.	”Run_model_and_create_raster_automatize” (R code)
-3.	“Create_final_output_automatize” (R code)
-4.	“sendData_Acores.ps1” (Power Shell code)
+#The codes to run and operationalize the predictive tool framework created for OCEAN in Work Package 4 are described on the following scripts:
+#1.	â€œDownload_data_from_CMEMS_DOM_toolâ€ (R code)
+#2.	â€Run_model_and_create_raster_automatizeâ€ (R code)
+#3.	â€œCreate_final_output_automatizeâ€ (R code)
+#4.	â€œsendData_Acores.ps1â€ (Power Shell code)
 
 
-1.	“Download_data_from_CMEMS_DOM_tool” (R code)
+#1.	â€œDownload_data_from_CMEMS_DOM_toolâ€ (R code)
 
 # Set working directories and load R packages
 
 path="path where the DOM tool is stored"
-envdir=”path to store environmental data”
-azores_shp="path to the Azores shapefile”
-chl_dir=”path to the folder with the Chlorophyll products”
-sst_dir=”path to the folder with the Sea Surface Temperature products”
+envdir=â€path to store environmental dataâ€
+azores_shp="path to the Azores shapefileâ€
+chl_dir=â€path to the folder with the Chlorophyll productsâ€
+sst_dir=â€path to the folder with the Sea Surface Temperature productsâ€
 
 #Path to copernicusmarine (object of the Copernicus Marine Toolbox)
-path_copernicusmarine: “path directory”
+path_copernicusmarine: â€œpath directoryâ€
 
 USERNAME<-"xxxxx"
 PASSWORD<-"xxxxx"
@@ -161,18 +161,18 @@ system(command_chl_2m, intern = TRUE)
 ################################################################
 ################################################################
 
-2.	”Run_model_and_create_raster_automatize” (R code)
+#2.	â€Run_model_and_create_raster_automatizeâ€ (R code)
 
 # Set working directories and load R packages
 
 path="path where the DOM tool is stored"
-envdir=”path to store environmental data”
-staticdir=”path to static variables data”
-gam_dir=”path to GAM outputs”
-oceandir= ”path to daily predictions”
-azores_shp="path to the Azores shapefile”
-chl_dir=”path to the folder with the Chlorophyll products”
-sst_dir=”path to the folder with the Sea Surface Temperature products”
+envdir=â€path to store environmental dataâ€
+staticdir=â€path to static variables dataâ€
+gam_dir=â€path to GAM outputsâ€
+oceandir= â€path to daily predictionsâ€
+azores_shp="path to the Azores shapefileâ€
+chl_dir=â€path to the folder with the Chlorophyll productsâ€
+sst_dir=â€path to the folder with the Sea Surface Temperature productsâ€
 
 
 #get actual date
@@ -318,14 +318,14 @@ dev.off()
 ################################################################
 ################################################################
 
-3.	“Create_final_output_automatize” (R code)
+#3.	â€œCreate_final_output_automatizeâ€ (R code)
 
 # Set working directories and load R packages
 path=&quot;path where the DOM tool is stored&quot;
-envdir=”path to store environmental data”
-oceandir= ”path to daily predictions”
-azores_shp=&quot;path to the Azores shapefile”
-path_powershell=&quot;path to powershell output”
+envdir=â€path to store environmental dataâ€
+oceandir= â€path to daily predictionsâ€
+azores_shp=&quot;path to the Azores shapefileâ€
+path_powershell=&quot;path to powershell outputâ€
 #get actual date
 get_date=Sys.Date()
 # Specify the path to your raster file
@@ -480,12 +480,12 @@ ames = FALSE, col.names = FALSE,quote = FALSE)
 ################################################################
 ################################################################
 
-4.	“sendData_Acores.ps1” (Power Shell code)
+#4.	â€œsendData_Acores.ps1â€ (Power Shell code)
 
 
 # Set working directories and load R packages
 
-path_powershell="path to powershell output”
+path_powershell="path to powershell outputâ€
 
 
 $timestamp = Get-Date -Format "yyyyMMddHHmmssfff"
