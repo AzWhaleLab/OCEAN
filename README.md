@@ -31,4 +31,4 @@ The routines include code to:
 
 ![image](https://github.com/user-attachments/assets/e0ff0b71-6f24-494e-8af1-ef0d2761c065)
 
-Project OCEAN received funding from the European Union’s Horizon Europe research and innovation programme under grant agreement No.101076983. UK participants in Project OCEAN are supported by UKRI grant numbers 10038659 (Lloyds Register) and 10052942 (The Nautical Institute).
+Project OCEAN received funding from the European Union’s Horizon Europe research and innovation programme under grant agreement No.101076983. UK participants in Project OCEAN were supported by UKRI grant numbers 10038659 (Lloyds Register) and 10052942 (The Nautical Institute).
